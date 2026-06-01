@@ -1,0 +1,955 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Clock · Calendar</title>
+<link href="https://fonts.googleapis.com/css2?family=SF+Pro+Display:wght@200;300;400;500;600&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --r-card: 28px;
+  --r-pill: 999px;
+  --r-sm: 16px;
+  --blur-lg: 40px;
+  --blur-md: 28px;
+  --blur-sm: 16px;
+  --sat: 1.8;
+  --white-hi: rgba(255,255,255,0.72);
+  --white-rim: rgba(255,255,255,0.38);
+  --white-inner: rgba(255,255,255,0.13);
+  --dark-inner: rgba(0,0,0,0.22);
+  --glass-bg: rgba(255,255,255,0.12);
+  --text: rgba(255,255,255,0.96);
+  --text-2: rgba(255,255,255,0.62);
+  --text-3: rgba(255,255,255,0.34);
+  --chroma-b: rgba(80,180,255,0.055);
+  --chroma-r: rgba(255,100,120,0.045);
+  --chroma-g: rgba(80,255,180,0.03);
+}
+
+html, body {
+  width: 100%; height: 100%;
+  overflow: hidden;
+  font-family: -apple-system, 'SF Pro Display', 'Helvetica Neue', sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  background: #0a0c10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ── Rich animated background ── */
+.bg {
+  position: fixed; inset: 0; z-index: 0;
+  overflow: hidden;
+}
+.bg-grad {
+  position: absolute; inset: -20%;
+  background:
+    radial-gradient(ellipse 70% 60% at 20% 20%, #1a3350 0%, transparent 60%),
+    radial-gradient(ellipse 60% 70% at 80% 75%, #2d1a3a 0%, transparent 55%),
+    radial-gradient(ellipse 55% 55% at 55% 45%, #0e2a22 0%, transparent 60%),
+    radial-gradient(ellipse 80% 80% at 50% 50%, #080b14 0%, transparent 100%);
+  animation: bgShift 20s ease-in-out infinite alternate;
+}
+@keyframes bgShift {
+  0%   { transform: scale(1) rotate(0deg); }
+  50%  { transform: scale(1.06) rotate(1.5deg); }
+  100% { transform: scale(1) rotate(0deg); }
+}
+.bg-blob {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  mix-blend-mode: screen;
+  opacity: 0;
+  animation: blobFloat var(--dur,22s) ease-in-out infinite;
+}
+.b1{width:500px;height:500px;top:-10%;left:-5%;background:radial-gradient(circle,#1e4080 0%,transparent 65%);--dur:20s;animation-delay:0s;}
+.b2{width:400px;height:400px;bottom:-8%;right:-5%;background:radial-gradient(circle,#3a1060 0%,transparent 65%);--dur:26s;animation-delay:-8s;}
+.b3{width:350px;height:350px;top:35%;left:35%;background:radial-gradient(circle,#0c3828 0%,transparent 65%);--dur:18s;animation-delay:-14s;}
+.b4{width:300px;height:300px;top:10%;right:15%;background:radial-gradient(circle,#401820 0%,transparent 65%);--dur:30s;animation-delay:-5s;}
+@keyframes blobFloat {
+  0%,100%{opacity:.8;transform:translate(0,0) scale(1);}
+  25%{opacity:.95;transform:translate(18px,-14px) scale(1.04);}
+  50%{opacity:.7;transform:translate(-12px,22px) scale(.97);}
+  75%{opacity:.9;transform:translate(10px,8px) scale(1.02);}
+}
+
+/* ── SVG filter defs (hidden) ── */
+.svg-filters { position:absolute; width:0; height:0; overflow:hidden; }
+
+/* ── Liquid Glass mixin ── */
+.lg {
+  position: relative;
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--blur-lg)) saturate(var(--sat)) brightness(1.08);
+  -webkit-backdrop-filter: blur(var(--blur-lg)) saturate(var(--sat)) brightness(1.08);
+  border-radius: var(--r-card);
+  overflow: hidden;
+  isolation: isolate;
+  transition: transform 0.4s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.3s ease;
+}
+
+/* Chromatic edge dispersion */
+.lg::before {
+  content: '';
+  position: absolute; inset: 0;
+  border-radius: inherit;
+  background:
+    radial-gradient(ellipse 90% 30% at 50% 0%, var(--chroma-b), transparent 60%),
+    radial-gradient(ellipse 90% 30% at 50% 100%, var(--chroma-r), transparent 60%),
+    radial-gradient(ellipse 30% 90% at 0% 50%, var(--chroma-g), transparent 60%),
+    radial-gradient(ellipse 30% 90% at 100% 50%, var(--chroma-b), transparent 60%);
+  pointer-events: none;
+  z-index: 1;
+  mix-blend-mode: screen;
+}
+
+/* Specular highlight — top rim */
+.lg::after {
+  content: '';
+  position: absolute; inset: 0;
+  border-radius: inherit;
+  background:
+    linear-gradient(170deg,
+      var(--white-hi) 0%,
+      var(--white-rim) 3%,
+      transparent 18%,
+      transparent 80%,
+      var(--dark-inner) 100%
+    );
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* Border rim */
+.lg-rim {
+  position: absolute; inset: 0;
+  border-radius: inherit;
+  border: 1px solid var(--white-rim);
+  pointer-events: none;
+  z-index: 3;
+  background: transparent;
+}
+/* Inner shadow for depth */
+.lg-rim::after {
+  content: '';
+  position: absolute; inset: 1px;
+  border-radius: calc(var(--r-card) - 1px);
+  border: 1px solid var(--white-inner);
+  pointer-events: none;
+}
+
+.lg > *:not(.lg-rim) { position: relative; z-index: 4; }
+
+/* Hover lift */
+.lg:hover {
+  transform: translateY(-2px) scale(1.005);
+  box-shadow: 0 24px 60px rgba(0,0,0,0.5), 0 4px 12px rgba(0,0,0,0.3);
+}
+
+/* ── Layout ── */
+.board {
+  position: relative; z-index: 10;
+  width: min(460px, 94vw);
+  display: grid;
+  grid-template-rows: auto auto auto auto auto;
+  gap: 12px;
+  padding: 6px;
+  animation: pageIn 0.9s cubic-bezier(0.22,1,0.36,1) both;
+}
+@keyframes pageIn {
+  from { opacity:0; transform: translateY(32px) scale(0.97); }
+  to   { opacity:1; transform: none; }
+}
+
+/* stagger children */
+.board > *:nth-child(1) { animation: cardIn 0.8s cubic-bezier(0.22,1,0.36,1) 0.05s both; }
+.board > *:nth-child(2) { animation: cardIn 0.8s cubic-bezier(0.22,1,0.36,1) 0.12s both; }
+.board > *:nth-child(3) { animation: cardIn 0.8s cubic-bezier(0.22,1,0.36,1) 0.19s both; }
+.board > *:nth-child(4) { animation: cardIn 0.8s cubic-bezier(0.22,1,0.36,1) 0.26s both; }
+.board > *:nth-child(5) { animation: cardIn 0.8s cubic-bezier(0.22,1,0.36,1) 0.33s both; }
+@keyframes cardIn {
+  from { opacity:0; transform: translateY(20px) scale(0.96); }
+  to   { opacity:1; transform: none; }
+}
+
+/* ── Clock panel ── */
+.clock-panel {
+  padding: 30px 32px 26px;
+  text-align: center;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.45), 0 1px 0 rgba(255,255,255,0.1) inset;
+}
+.clock-eyebrow {
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--text-2);
+  margin-bottom: 8px;
+}
+.clock-face {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 0;
+  line-height: 1;
+}
+.clock-digits {
+  font-family: 'DM Serif Display', serif;
+  font-size: clamp(64px, 16vw, 90px);
+  font-weight: 400;
+  color: var(--text);
+  letter-spacing: -0.04em;
+  text-shadow: 0 2px 40px rgba(255,255,255,0.12);
+  display: flex;
+  align-items: baseline;
+  gap: 0px;
+}
+.d-h, .d-m { display: inline-block; min-width: 2ch; text-align: center; }
+.d-colon {
+  color: rgba(255,255,255,0.5);
+  margin: 0 2px;
+  animation: blinkColon 1s step-start infinite;
+  padding-bottom: 6px;
+}
+@keyframes blinkColon { 0%,49%{opacity:1;} 50%,100%{opacity:0.15;} }
+.clock-ampm {
+  font-size: 16px;
+  font-weight: 300;
+  letter-spacing: 0.08em;
+  color: rgba(255,255,255,0.6);
+  margin-left: 8px;
+  margin-bottom: 4px;
+  align-self: flex-end;
+}
+.clock-sub {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  margin-top: 10px;
+}
+.clock-sec {
+  font-size: 12px;
+  font-weight: 300;
+  letter-spacing: 0.14em;
+  color: var(--text-3);
+}
+.sec-track {
+  flex: 1;
+  max-width: 160px;
+  height: 2px;
+  background: rgba(255,255,255,0.12);
+  border-radius: 1px;
+  overflow: visible;
+  position: relative;
+}
+.sec-fill {
+  height: 100%;
+  background: linear-gradient(90deg, rgba(120,200,255,0.6), rgba(255,255,255,0.85));
+  border-radius: 1px;
+  transition: width 0.95s linear;
+  box-shadow: 0 0 8px rgba(180,220,255,0.6);
+}
+.sec-dot {
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: #fff;
+  position: absolute;
+  top: 50%; right: -1px;
+  transform: translateY(-50%);
+  box-shadow: 0 0 6px rgba(180,220,255,0.9);
+  transition: right 0.95s linear;
+}
+.tz-chip {
+  margin-top: 13px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-2);
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.14);
+  padding: 5px 12px;
+  border-radius: 99px;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
+.tz-chip:hover { background: rgba(255,255,255,0.14); }
+.tz-dot { width:5px;height:5px;border-radius:50%;background:rgba(120,220,160,0.9);box-shadow:0 0 5px rgba(120,220,160,0.8); animation: tzPulse 2s ease-in-out infinite; }
+@keyframes tzPulse { 0%,100%{opacity:1;transform:scale(1);} 50%{opacity:.6;transform:scale(0.7);} }
+
+/* value pop */
+@keyframes valPop {
+  0%  { transform: scale(1); }
+  40% { transform: scale(1.055); }
+  100%{ transform: scale(1); }
+}
+.pop { animation: valPop 0.4s cubic-bezier(0.34,1.56,0.64,1); }
+
+/* ── Day strip ── */
+.day-strip {
+  --r-card: 20px;
+  padding: 12px 14px;
+  display: flex;
+  gap: 5px;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.35);
+}
+.day-pill {
+  flex: 1;
+  border-radius: 14px;
+  padding: 10px 2px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  cursor: default;
+  transition: all 0.45s cubic-bezier(0.34,1.56,0.64,1);
+}
+.day-pill.active {
+  background: rgba(255,255,255,0.16);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.35), inset 0 -1px 0 rgba(0,0,0,0.15);
+  transform: translateY(-2px) scale(1.06);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+.day-name {
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-3);
+  transition: color 0.3s;
+}
+.day-pill.active .day-name { color: var(--text); }
+.day-indicator {
+  width: 4px; height: 4px;
+  border-radius: 50%;
+  background: transparent;
+  transition: all 0.35s ease;
+}
+.day-pill.active .day-indicator {
+  background: rgba(140,210,255,0.9);
+  box-shadow: 0 0 8px rgba(140,210,255,0.7);
+}
+
+/* ── Mid row ── */
+.mid-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+/* ── Date card ── */
+.date-card {
+  padding: 26px 20px 22px;
+  text-align: center;
+  box-shadow: 0 16px 50px rgba(0,0,0,0.38);
+}
+.card-eyebrow {
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--text-3);
+  margin-bottom: 6px;
+}
+.date-big {
+  font-family: 'DM Serif Display', serif;
+  font-size: clamp(52px, 11vw, 70px);
+  color: var(--text);
+  line-height: 1;
+  letter-spacing: -0.03em;
+  text-shadow: 0 0 50px rgba(255,255,255,0.15);
+}
+.date-ord {
+  font-size: 14px;
+  font-weight: 300;
+  color: rgba(160,210,255,0.8);
+  letter-spacing: 0.06em;
+  margin-top: 3px;
+}
+
+/* ── Month/Year card ── */
+.my-card {
+  padding: 22px 20px 20px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  box-shadow: 0 16px 50px rgba(0,0,0,0.38);
+}
+.month-big {
+  font-family: 'DM Serif Display', serif;
+  font-size: clamp(24px,5.5vw,32px);
+  color: var(--text);
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+.year-label {
+  font-size: 11px;
+  font-weight: 300;
+  letter-spacing: 0.2em;
+  color: rgba(160,200,255,0.7);
+  margin-top: 3px;
+}
+.progress-section { margin-top: 14px; }
+.progress-eyebrow {
+  font-size: 8.5px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--text-3);
+  margin-bottom: 5px;
+}
+.prog-track {
+  height: 3px;
+  background: rgba(255,255,255,0.1);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.prog-fill {
+  height: 100%;
+  border-radius: 2px;
+  background: linear-gradient(90deg, rgba(100,180,255,0.7), rgba(200,240,255,0.9));
+  transition: width 0.8s ease;
+  box-shadow: 0 0 8px rgba(140,200,255,0.5);
+}
+.month-dots-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  margin-top: 7px;
+}
+.md {
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.1);
+  transition: all 0.3s ease;
+}
+.md.past { background: rgba(100,170,255,0.5); }
+.md.now  { background: rgba(200,240,255,0.95); box-shadow: 0 0 5px rgba(180,220,255,0.7); transform: scale(1.35); }
+
+/* ── Mini calendar ── */
+.cal-card {
+  padding: 18px 18px 16px;
+  box-shadow: 0 16px 50px rgba(0,0,0,0.38);
+}
+.cal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.cal-title-text {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text);
+}
+.cal-btn {
+  width: 26px; height: 26px;
+  border-radius: 8px;
+  background: rgba(255,255,255,0.1);
+  border: 1px solid rgba(255,255,255,0.16);
+  color: var(--text);
+  font-size: 13px;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  transition: all 0.2s ease;
+}
+.cal-btn:hover { background: rgba(255,255,255,0.18); transform: scale(1.1); }
+.cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+.cal-dh {
+  text-align: center;
+  font-size: 8.5px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-3);
+  padding: 3px 0 5px;
+}
+.cal-cell {
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-size: 10.5px;
+  font-weight: 300;
+  color: var(--text-2);
+  transition: all 0.3s cubic-bezier(0.34,1.56,0.64,1);
+  cursor: default;
+}
+.cal-cell.dim { color: var(--text-3); }
+.cal-cell.today {
+  background: rgba(255,255,255,0.88);
+  color: #0d1018;
+  font-weight: 600;
+  box-shadow: 0 4px 18px rgba(180,220,255,0.45);
+  transform: scale(1.22);
+}
+
+/* ── Search panel ── */
+.search-panel {
+  --r-card: 20px;
+  padding: 13px 16px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  box-shadow: 0 10px 36px rgba(0,0,0,0.3);
+  position: relative;
+}
+.search-ico {
+  font-size: 15px;
+  color: var(--text-3);
+  flex-shrink: 0;
+  transition: color 0.3s;
+}
+.search-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 300;
+  color: var(--text);
+  letter-spacing: 0.03em;
+  caret-color: rgba(140,200,255,0.9);
+}
+.search-input::placeholder { color: var(--text-3); }
+.search-x {
+  display: none;
+  background: rgba(255,255,255,0.1);
+  border: 1px solid rgba(255,255,255,0.14);
+  color: var(--text-2);
+  border-radius: 6px;
+  padding: 2px 7px;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.2s;
+  backdrop-filter: blur(8px);
+}
+.search-x.show { display: block; }
+.search-x:hover { background: rgba(255,255,255,0.2); }
+
+.results-popup {
+  display: none;
+  position: absolute;
+  bottom: calc(100% + 8px); left: 0; right: 0;
+  background: rgba(14,16,22,0.88);
+  backdrop-filter: blur(48px) saturate(2);
+  -webkit-backdrop-filter: blur(48px) saturate(2);
+  border: 1px solid rgba(255,255,255,0.18);
+  border-radius: 18px;
+  overflow: hidden;
+  max-height: 210px;
+  overflow-y: auto;
+  z-index: 200;
+  box-shadow: 0 -12px 50px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.12);
+  animation: popUp 0.28s cubic-bezier(0.22,1,0.36,1);
+}
+.results-popup.open { display: block; }
+@keyframes popUp { from{opacity:0;transform:translateY(6px) scale(0.98);} to{opacity:1;transform:none;} }
+.res-item {
+  padding: 11px 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+  transition: background 0.15s;
+}
+.res-item:last-child { border-bottom: none; }
+.res-item:hover { background: rgba(255,255,255,0.07); }
+.res-city { font-size: 13px; font-weight: 400; color: var(--text); }
+.res-meta { font-size: 10px; font-weight: 300; letter-spacing: 0.08em; color: var(--text-3); margin-top: 1px; }
+.res-tz { font-size: 10px; color: rgba(120,190,255,0.7); letter-spacing: 0.04em; }
+.no-res { padding: 16px; text-align: center; font-size: 12px; color: var(--text-3); }
+.results-popup::-webkit-scrollbar { width: 3px; }
+.results-popup::-webkit-scrollbar-track { background: transparent; }
+.results-popup::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 2px; }
+
+/* Refraction overlay using SVG filter */
+.lg-refract {
+  position: absolute; inset: 0;
+  border-radius: inherit;
+  filter: url(#lensRefract);
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.4;
+}
+</style>
+</head>
+<body>
+
+<!-- Hidden SVG filters -->
+<svg class="svg-filters" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Main lens refraction filter -->
+    <filter id="lensRefract" x="-5%" y="-5%" width="110%" height="110%" color-interpolation-filters="sRGB">
+      <feTurbulence type="fractalNoise" baseFrequency="0.018 0.024" numOctaves="3" seed="42" result="noise"/>
+      <feDisplacementMap in="SourceGraphic" in2="noise" scale="8" xChannelSelector="R" yChannelSelector="G" result="displaced"/>
+      <feGaussianBlur in="displaced" stdDeviation="0.6" result="blurred"/>
+      <!-- Specular lighting -->
+      <feSpecularLighting in="noise" surfaceScale="3" specularConstant="0.7" specularExponent="28" lighting-color="rgba(255,255,255,0.5)" result="specular">
+        <fePointLight x="50%" y="-30%" z="80"/>
+      </feSpecularLighting>
+      <feBlend in="blurred" in2="specular" mode="screen" result="final"/>
+    </filter>
+
+    <!-- Shimmer animation filter for the rim highlight -->
+    <filter id="rimGlow" x="-2%" y="-2%" width="104%" height="104%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="1.5" result="glow"/>
+      <feComposite in="SourceGraphic" in2="glow" operator="over"/>
+    </filter>
+
+    <!-- Subtle edge dispersion -->
+    <filter id="edgeFringe" x="-3%" y="-3%" width="106%" height="106%" color-interpolation-filters="sRGB">
+      <feTurbulence type="turbulence" baseFrequency="0.04" numOctaves="2" seed="7" result="t"/>
+      <feDisplacementMap in="SourceGraphic" in2="t" scale="3" xChannelSelector="R" yChannelSelector="B"/>
+    </filter>
+  </defs>
+</svg>
+
+<!-- Background -->
+<div class="bg">
+  <div class="bg-grad"></div>
+  <div class="bg-blob b1"></div>
+  <div class="bg-blob b2"></div>
+  <div class="bg-blob b3"></div>
+  <div class="bg-blob b4"></div>
+</div>
+
+<!-- Board -->
+<div class="board">
+
+  <!-- Clock -->
+  <div class="lg clock-panel">
+    <div class="lg-rim"></div>
+    <div class="clock-eyebrow">Current Time</div>
+    <div class="clock-face">
+      <div class="clock-digits">
+        <span class="d-h" id="dh">--</span>
+        <span class="d-colon">:</span>
+        <span class="d-m" id="dm">--</span>
+      </div>
+      <div class="clock-ampm" id="ampm">AM</div>
+    </div>
+    <div class="clock-sub">
+      <span class="clock-sec" id="dsec">00s</span>
+      <div class="sec-track" id="sTrack">
+        <div class="sec-fill" id="sFill" style="width:0%"></div>
+        <div class="sec-dot" id="sDot" style="right:calc(100% - 0%)"></div>
+      </div>
+    </div>
+    <div>
+      <div class="tz-chip" id="tzChip">
+        <div class="tz-dot"></div>
+        <span id="tzLabel">Detecting…</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Day strip -->
+  <div class="lg day-strip" id="dayStrip">
+    <div class="lg-rim"></div>
+    <div class="day-pill" data-d="0"><div class="day-name">Su</div><div class="day-indicator"></div></div>
+    <div class="day-pill" data-d="1"><div class="day-name">Mo</div><div class="day-indicator"></div></div>
+    <div class="day-pill" data-d="2"><div class="day-name">Tu</div><div class="day-indicator"></div></div>
+    <div class="day-pill" data-d="3"><div class="day-name">We</div><div class="day-indicator"></div></div>
+    <div class="day-pill" data-d="4"><div class="day-name">Th</div><div class="day-indicator"></div></div>
+    <div class="day-pill" data-d="5"><div class="day-name">Fr</div><div class="day-indicator"></div></div>
+    <div class="day-pill" data-d="6"><div class="day-name">Sa</div><div class="day-indicator"></div></div>
+  </div>
+
+  <!-- Date + Month/Year -->
+  <div class="mid-row">
+    <div class="lg date-card">
+      <div class="lg-rim"></div>
+      <div class="card-eyebrow">Date</div>
+      <div class="date-big" id="dateBig">--</div>
+      <div class="date-ord" id="dateOrd"></div>
+    </div>
+    <div class="lg my-card">
+      <div class="lg-rim"></div>
+      <div>
+        <div class="card-eyebrow">Month · Year</div>
+        <div class="month-big" id="monthBig">--</div>
+        <div class="year-label" id="yearLabel">----</div>
+      </div>
+      <div class="progress-section">
+        <div class="progress-eyebrow">Month Progress</div>
+        <div class="prog-track"><div class="prog-fill" id="progFill" style="width:0%"></div></div>
+        <div class="month-dots-row" id="mDots"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Mini calendar -->
+  <div class="lg cal-card">
+    <div class="lg-rim"></div>
+    <div class="cal-head">
+      <button class="cal-btn" id="calPrev">‹</button>
+      <div class="cal-title-text" id="calTitle"></div>
+      <button class="cal-btn" id="calNext">›</button>
+    </div>
+    <div class="cal-grid" id="calGrid"></div>
+  </div>
+
+  <!-- Search -->
+  <div class="lg search-panel">
+    <div class="lg-rim"></div>
+    <span class="search-ico">⌕</span>
+    <input class="search-input" id="searchInput" type="text" placeholder="Search city or timezone…" autocomplete="off" spellcheck="false">
+    <button class="search-x" id="searchX">✕</button>
+    <div class="results-popup" id="resultsPopup"></div>
+  </div>
+
+</div>
+
+<script>
+// ── State
+let tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+let calOff = 0;
+let calView = null;
+let prevH = -1, prevM = -1;
+
+// ── Cities DB
+const CITIES = [
+  {city:"New York",country:"USA",tz:"America/New_York"},{city:"Los Angeles",country:"USA",tz:"America/Los_Angeles"},{city:"Chicago",country:"USA",tz:"America/Chicago"},{city:"Houston",country:"USA",tz:"America/Chicago"},{city:"Phoenix",country:"USA",tz:"America/Phoenix"},{city:"Philadelphia",country:"USA",tz:"America/New_York"},{city:"San Diego",country:"USA",tz:"America/Los_Angeles"},{city:"Dallas",country:"USA",tz:"America/Chicago"},{city:"Seattle",country:"USA",tz:"America/Los_Angeles"},{city:"Denver",country:"USA",tz:"America/Denver"},{city:"Boston",country:"USA",tz:"America/New_York"},{city:"Miami",country:"USA",tz:"America/New_York"},{city:"Atlanta",country:"USA",tz:"America/New_York"},{city:"Las Vegas",country:"USA",tz:"America/Los_Angeles"},{city:"Honolulu",country:"USA",tz:"Pacific/Honolulu"},{city:"Anchorage",country:"USA",tz:"America/Anchorage"},{city:"London",country:"UK",tz:"Europe/London"},{city:"Paris",country:"France",tz:"Europe/Paris"},{city:"Berlin",country:"Germany",tz:"Europe/Berlin"},{city:"Rome",country:"Italy",tz:"Europe/Rome"},{city:"Madrid",country:"Spain",tz:"Europe/Madrid"},{city:"Amsterdam",country:"Netherlands",tz:"Europe/Amsterdam"},{city:"Brussels",country:"Belgium",tz:"Europe/Brussels"},{city:"Vienna",country:"Austria",tz:"Europe/Vienna"},{city:"Zurich",country:"Switzerland",tz:"Europe/Zurich"},{city:"Stockholm",country:"Sweden",tz:"Europe/Stockholm"},{city:"Oslo",country:"Norway",tz:"Europe/Oslo"},{city:"Copenhagen",country:"Denmark",tz:"Europe/Copenhagen"},{city:"Helsinki",country:"Finland",tz:"Europe/Helsinki"},{city:"Warsaw",country:"Poland",tz:"Europe/Warsaw"},{city:"Prague",country:"Czech Republic",tz:"Europe/Prague"},{city:"Budapest",country:"Hungary",tz:"Europe/Budapest"},{city:"Athens",country:"Greece",tz:"Europe/Athens"},{city:"Istanbul",country:"Turkey",tz:"Europe/Istanbul"},{city:"Moscow",country:"Russia",tz:"Europe/Moscow"},{city:"Dubai",country:"UAE",tz:"Asia/Dubai"},{city:"Abu Dhabi",country:"UAE",tz:"Asia/Dubai"},{city:"Riyadh",country:"Saudi Arabia",tz:"Asia/Riyadh"},{city:"Doha",country:"Qatar",tz:"Asia/Qatar"},{city:"Kuwait City",country:"Kuwait",tz:"Asia/Kuwait"},{city:"Karachi",country:"Pakistan",tz:"Asia/Karachi"},{city:"Lahore",country:"Pakistan",tz:"Asia/Karachi"},{city:"Islamabad",country:"Pakistan",tz:"Asia/Karachi"},{city:"Mumbai",country:"India",tz:"Asia/Kolkata"},{city:"Delhi",country:"India",tz:"Asia/Kolkata"},{city:"Bangalore",country:"India",tz:"Asia/Kolkata"},{city:"Kolkata",country:"India",tz:"Asia/Kolkata"},{city:"Chennai",country:"India",tz:"Asia/Kolkata"},{city:"Hyderabad",country:"India",tz:"Asia/Kolkata"},{city:"Dhaka",country:"Bangladesh",tz:"Asia/Dhaka"},{city:"Kathmandu",country:"Nepal",tz:"Asia/Kathmandu"},{city:"Colombo",country:"Sri Lanka",tz:"Asia/Colombo"},{city:"Bangkok",country:"Thailand",tz:"Asia/Bangkok"},{city:"Jakarta",country:"Indonesia",tz:"Asia/Jakarta"},{city:"Singapore",country:"Singapore",tz:"Asia/Singapore"},{city:"Kuala Lumpur",country:"Malaysia",tz:"Asia/Kuala_Lumpur"},{city:"Manila",country:"Philippines",tz:"Asia/Manila"},{city:"Ho Chi Minh City",country:"Vietnam",tz:"Asia/Ho_Chi_Minh"},{city:"Hanoi",country:"Vietnam",tz:"Asia/Bangkok"},{city:"Hong Kong",country:"China",tz:"Asia/Hong_Kong"},{city:"Taipei",country:"Taiwan",tz:"Asia/Taipei"},{city:"Shanghai",country:"China",tz:"Asia/Shanghai"},{city:"Beijing",country:"China",tz:"Asia/Shanghai"},{city:"Shenzhen",country:"China",tz:"Asia/Shanghai"},{city:"Seoul",country:"South Korea",tz:"Asia/Seoul"},{city:"Tokyo",country:"Japan",tz:"Asia/Tokyo"},{city:"Osaka",country:"Japan",tz:"Asia/Tokyo"},{city:"Dubai",country:"UAE",tz:"Asia/Dubai"},{city:"Tehran",country:"Iran",tz:"Asia/Tehran"},{city:"Baghdad",country:"Iraq",tz:"Asia/Baghdad"},{city:"Beirut",country:"Lebanon",tz:"Asia/Beirut"},{city:"Tel Aviv",country:"Israel",tz:"Asia/Jerusalem"},{city:"Cairo",country:"Egypt",tz:"Africa/Cairo"},{city:"Lagos",country:"Nigeria",tz:"Africa/Lagos"},{city:"Nairobi",country:"Kenya",tz:"Africa/Nairobi"},{city:"Johannesburg",country:"South Africa",tz:"Africa/Johannesburg"},{city:"Cape Town",country:"South Africa",tz:"Africa/Johannesburg"},{city:"Casablanca",country:"Morocco",tz:"Africa/Casablanca"},{city:"Sydney",country:"Australia",tz:"Australia/Sydney"},{city:"Melbourne",country:"Australia",tz:"Australia/Melbourne"},{city:"Brisbane",country:"Australia",tz:"Australia/Brisbane"},{city:"Perth",country:"Australia",tz:"Australia/Perth"},{city:"Auckland",country:"New Zealand",tz:"Pacific/Auckland"},{city:"Mexico City",country:"Mexico",tz:"America/Mexico_City"},{city:"Toronto",country:"Canada",tz:"America/Toronto"},{city:"Vancouver",country:"Canada",tz:"America/Vancouver"},{city:"Montreal",country:"Canada",tz:"America/Toronto"},{city:"São Paulo",country:"Brazil",tz:"America/Sao_Paulo"},{city:"Rio de Janeiro",country:"Brazil",tz:"America/Sao_Paulo"},{city:"Buenos Aires",country:"Argentina",tz:"America/Argentina/Buenos_Aires"},{city:"Santiago",country:"Chile",tz:"America/Santiago"},{city:"Lima",country:"Peru",tz:"America/Lima"},{city:"Bogotá",country:"Colombia",tz:"America/Bogota"},{city:"Dublin",country:"Ireland",tz:"Europe/Dublin"},{city:"Lisbon",country:"Portugal",tz:"Europe/Lisbon"},{city:"Reykjavik",country:"Iceland",tz:"Atlantic/Reykjavik"},{city:"Kabul",country:"Afghanistan",tz:"Asia/Kabul"},{city:"Tashkent",country:"Uzbekistan",tz:"Asia/Tashkent"},{city:"Almaty",country:"Kazakhstan",tz:"Asia/Almaty"},{city:"Ulaanbaatar",country:"Mongolia",tz:"Asia/Ulaanbaatar"},{city:"Yangon",country:"Myanmar",tz:"Asia/Yangon"},{city:"Addis Ababa",country:"Ethiopia",tz:"Africa/Addis_Ababa"},{city:"Havana",country:"Cuba",tz:"America/Havana"},{city:"Panama City",country:"Panama",tz:"America/Panama"},{city:"San José",country:"Costa Rica",tz:"America/Costa_Rica"},{city:"Montevideo",country:"Uruguay",tz:"America/Montevideo"},
+];
+
+// ── Helpers
+function getT() {
+  const d = new Date();
+  const f = s => new Intl.DateTimeFormat("en-US", { timeZone: tz, ...s }).format(d);
+  const ld = new Date(d.toLocaleString("en-US", { timeZone: tz }));
+  return {
+    h: ld.getHours(), m: ld.getMinutes(), s: ld.getSeconds(),
+    dow: ld.getDay(), date: ld.getDate(),
+    month: ld.getMonth(), year: ld.getFullYear(),
+    monthName: f({ month: "long" }),
+  };
+}
+
+function ord(n) {
+  const v = n % 100;
+  return ["th","st","nd","rd"][(v-20)%10] || ["th","st","nd","rd"][v] || "th";
+}
+
+function dim(y, m) { return new Date(y, m+1, 0).getDate(); }
+
+function pop(id) {
+  const e = document.getElementById(id);
+  if (!e) return;
+  e.classList.remove("pop");
+  void e.offsetWidth;
+  e.classList.add("pop");
+}
+
+// ── Tick
+function tick() {
+  const t = getT();
+  const h12 = t.h % 12 || 12;
+  const ampm = t.h >= 12 ? "PM" : "AM";
+  const hh = String(h12).padStart(2,"0");
+  const mm = String(t.m).padStart(2,"0");
+  const ss = String(t.s).padStart(2,"0");
+  const pct = (t.s / 59 * 100).toFixed(1);
+
+  document.getElementById("dh").textContent = hh;
+  document.getElementById("dm").textContent = mm;
+  document.getElementById("ampm").textContent = ampm;
+  document.getElementById("dsec").textContent = ss + "s";
+  document.getElementById("sFill").style.width = pct + "%";
+  document.getElementById("tzLabel").textContent = tz.split("/").pop().replace(/_/g," ");
+
+  if (t.h !== prevH) { pop("dh"); prevH = t.h; }
+  if (t.m !== prevM) { pop("dm"); prevM = t.m; }
+
+  // Days
+  document.querySelectorAll(".day-pill").forEach(p => {
+    p.classList.toggle("active", parseInt(p.dataset.d) === t.dow);
+  });
+
+  // Date
+  document.getElementById("dateBig").textContent = t.date;
+  document.getElementById("dateOrd").textContent = t.date + ord(t.date);
+  document.getElementById("monthBig").textContent = t.monthName;
+  document.getElementById("yearLabel").textContent = t.year;
+
+  // Month dots
+  const total = dim(t.year, t.month);
+  const pctM = (t.date / total * 100).toFixed(1);
+  document.getElementById("progFill").style.width = pctM + "%";
+  const dotWrap = document.getElementById("mDots");
+  if (dotWrap.children.length !== total) {
+    dotWrap.innerHTML = "";
+    for (let i = 1; i <= total; i++) {
+      const d = document.createElement("div");
+      d.className = "md" + (i < t.date ? " past" : i === t.date ? " now" : "");
+      dotWrap.appendChild(d);
+    }
+  } else {
+    Array.from(dotWrap.children).forEach((d, i) => {
+      d.className = "md" + (i+1 < t.date ? " past" : i+1 === t.date ? " now" : "");
+    });
+  }
+
+  // Cal
+  if (!calView) renderCal(t.year, t.month, t.date);
+
+  requestAnimationFrame(tick);
+}
+
+// ── Calendar
+let calOffset2 = 0;
+function renderCal(year, month, today) {
+  const t = getT();
+  const months = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+  const isCurrent = year === t.year && month === t.month;
+  document.getElementById("calTitle").textContent = months[month].slice(0,3).toUpperCase() + " " + year;
+
+  const g = document.getElementById("calGrid");
+  g.innerHTML = "";
+  ["Su","Mo","Tu","We","Th","Fr","Sa"].forEach(d => {
+    const el = document.createElement("div");
+    el.className = "cal-dh";
+    el.textContent = d;
+    g.appendChild(el);
+  });
+  const fd = new Date(year, month, 1).getDay();
+  const dm2 = dim(year, month);
+  const pdm = dim(year, month - 1);
+  for (let i = 0; i < fd; i++) {
+    const el = document.createElement("div");
+    el.className = "cal-cell dim";
+    el.textContent = pdm - fd + i + 1;
+    g.appendChild(el);
+  }
+  for (let d = 1; d <= dm2; d++) {
+    const el = document.createElement("div");
+    el.className = "cal-cell" + (isCurrent && d === today ? " today" : "");
+    el.textContent = d;
+    g.appendChild(el);
+  }
+  const rem = 42 - fd - dm2;
+  for (let i = 1; i <= rem; i++) {
+    const el = document.createElement("div");
+    el.className = "cal-cell dim";
+    el.textContent = i;
+    g.appendChild(el);
+  }
+}
+
+document.getElementById("calPrev").addEventListener("click", () => {
+  calOff--;
+  const t = getT();
+  const d = new Date(t.year, t.month + calOff, 1);
+  calView = calOff !== 0 ? {y: d.getFullYear(), m: d.getMonth()} : null;
+  renderCal(d.getFullYear(), d.getMonth(), t.date);
+});
+document.getElementById("calNext").addEventListener("click", () => {
+  calOff++;
+  const t = getT();
+  const d = new Date(t.year, t.month + calOff, 1);
+  calView = calOff !== 0 ? {y: d.getFullYear(), m: d.getMonth()} : null;
+  renderCal(d.getFullYear(), d.getMonth(), t.date);
+});
+
+// ── Search
+const si = document.getElementById("searchInput");
+const rp = document.getElementById("resultsPopup");
+const sx = document.getElementById("searchX");
+
+si.addEventListener("input", () => {
+  const q = si.value.trim().toLowerCase();
+  sx.classList.toggle("show", q.length > 0);
+  if (!q) { rp.classList.remove("open"); return; }
+  const hits = CITIES.filter(c =>
+    c.city.toLowerCase().includes(q) || c.country.toLowerCase().includes(q) || c.tz.toLowerCase().includes(q)
+  ).slice(0, 9);
+  rp.innerHTML = "";
+  if (!hits.length) {
+    rp.innerHTML = `<div class="no-res">No cities found</div>`;
+  } else {
+    hits.forEach(h => {
+      const el = document.createElement("div");
+      el.className = "res-item";
+      el.innerHTML = `<div><div class="res-city">${h.city}</div><div class="res-meta">${h.country}</div></div><div class="res-tz">${h.tz.replace("_"," ")}</div>`;
+      el.addEventListener("click", () => {
+        tz = h.tz;
+        si.value = h.city + ", " + h.country;
+        rp.classList.remove("open");
+        sx.classList.add("show");
+        prevH = -1; prevM = -1;
+        calOff = 0; calView = null;
+      });
+      rp.appendChild(el);
+    });
+  }
+  rp.classList.add("open");
+});
+
+si.addEventListener("focus", () => { if (si.value.trim()) rp.classList.add("open"); });
+
+sx.addEventListener("click", () => {
+  si.value = "";
+  sx.classList.remove("show");
+  rp.classList.remove("open");
+  tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  prevH = -1; prevM = -1;
+  calOff = 0; calView = null;
+});
+
+document.addEventListener("click", e => {
+  if (!e.target.closest(".search-panel")) rp.classList.remove("open");
+});
+
+// ── Parallax tilt on mouse move
+document.addEventListener("mousemove", e => {
+  const cx = window.innerWidth / 2;
+  const cy = window.innerHeight / 2;
+  const dx = (e.clientX - cx) / cx;
+  const dy = (e.clientY - cy) / cy;
+  document.querySelectorAll(".lg").forEach((el, i) => {
+    const d = 1 + i * 0.3;
+    el.style.transform = `perspective(900px) rotateY(${dx * 2 / d}deg) rotateX(${-dy * 1.5 / d}deg)`;
+  });
+  // Shift specular point light dynamically
+  const pl = document.querySelector("fePointLight");
+  if (pl) {
+    pl.setAttribute("x", (50 + dx * 30) + "%");
+    pl.setAttribute("y", (50 + dy * 30) + "%");
+  }
+});
+document.addEventListener("mouseleave", () => {
+  document.querySelectorAll(".lg").forEach(el => {
+    el.style.transform = "";
+  });
+});
+
+tick();
+</script>
+</body>
+</html>
