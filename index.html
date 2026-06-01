@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Clock · Calendar</title>
-<link href="https://fonts.googleapis.com/css2?family=SF+Pro+Display:wght@200;300;400;500;600&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=SF+Pro+Display:wght=200;300;400;500;600&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet">
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -29,18 +29,23 @@
   --chroma-g: rgba(80,255,180,0.03);
 }
 
-html, body {
-  width: 100%; height: 100%;
-  overflow: hidden;
-  font-family: -apple-system, 'SF Pro Display', 'Helvetica Neue', sans-serif;
-  -webkit-font-smoothing: antialiased;
+html {
+  width: 100%;
+  height: 100%;
 }
 
 body {
+  min-height: 100%;
+  width: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+  font-family: -apple-system, 'SF Pro Display', 'Helvetica Neue', sans-serif;
+  -webkit-font-smoothing: antialiased;
   background: #0a0c10;
   display: flex;
   align-items: center;
   justify-content: center;
+  padding: 24px 0;
 }
 
 /* ── Rich animated background ── */
@@ -157,11 +162,12 @@ body {
 /* ── Layout ── */
 .board {
   position: relative; z-index: 10;
-  width: min(460px, 94vw);
+  width: min(460px, 92vw);
   display: grid;
-  grid-template-rows: auto auto auto auto auto;
+  grid-template-rows: auto;
   gap: 12px;
   padding: 6px;
+  margin: auto;
   animation: pageIn 0.9s cubic-bezier(0.22,1,0.36,1) both;
 }
 @keyframes pageIn {
@@ -598,32 +604,49 @@ body {
   z-index: 0;
   opacity: 0.4;
 }
+
+/* ── Mobile Optimization Safety Net ── */
+@media (max-width: 480px) {
+  body {
+    padding: 16px 0;
+  }
+  .clock-panel {
+    padding: 22px 20px 18px;
+  }
+  .clock-digits {
+    font-size: clamp(54px, 14vw, 76px);
+  }
+  .date-card {
+    padding: 20px 14px 16px;
+  }
+  .my-card {
+    padding: 18px 14px 16px;
+  }
+  .cal-card {
+    padding: 14px 14px 12px;
+  }
+}
 </style>
 </head>
 <body>
 
-<!-- Hidden SVG filters -->
 <svg class="svg-filters" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <!-- Main lens refraction filter -->
     <filter id="lensRefract" x="-5%" y="-5%" width="110%" height="110%" color-interpolation-filters="sRGB">
       <feTurbulence type="fractalNoise" baseFrequency="0.018 0.024" numOctaves="3" seed="42" result="noise"/>
       <feDisplacementMap in="SourceGraphic" in2="noise" scale="8" xChannelSelector="R" yChannelSelector="G" result="displaced"/>
       <feGaussianBlur in="displaced" stdDeviation="0.6" result="blurred"/>
-      <!-- Specular lighting -->
       <feSpecularLighting in="noise" surfaceScale="3" specularConstant="0.7" specularExponent="28" lighting-color="rgba(255,255,255,0.5)" result="specular">
         <fePointLight x="50%" y="-30%" z="80"/>
       </feSpecularLighting>
       <feBlend in="blurred" in2="specular" mode="screen" result="final"/>
     </filter>
 
-    <!-- Shimmer animation filter for the rim highlight -->
     <filter id="rimGlow" x="-2%" y="-2%" width="104%" height="104%">
       <feGaussianBlur in="SourceGraphic" stdDeviation="1.5" result="glow"/>
       <feComposite in="SourceGraphic" in2="glow" operator="over"/>
     </filter>
 
-    <!-- Subtle edge dispersion -->
     <filter id="edgeFringe" x="-3%" y="-3%" width="106%" height="106%" color-interpolation-filters="sRGB">
       <feTurbulence type="turbulence" baseFrequency="0.04" numOctaves="2" seed="7" result="t"/>
       <feDisplacementMap in="SourceGraphic" in2="t" scale="3" xChannelSelector="R" yChannelSelector="B"/>
@@ -631,7 +654,6 @@ body {
   </defs>
 </svg>
 
-<!-- Background -->
 <div class="bg">
   <div class="bg-grad"></div>
   <div class="bg-blob b1"></div>
@@ -640,10 +662,8 @@ body {
   <div class="bg-blob b4"></div>
 </div>
 
-<!-- Board -->
 <div class="board">
 
-  <!-- Clock -->
   <div class="lg clock-panel">
     <div class="lg-rim"></div>
     <div class="clock-eyebrow">Current Time</div>
@@ -670,7 +690,6 @@ body {
     </div>
   </div>
 
-  <!-- Day strip -->
   <div class="lg day-strip" id="dayStrip">
     <div class="lg-rim"></div>
     <div class="day-pill" data-d="0"><div class="day-name">Su</div><div class="day-indicator"></div></div>
@@ -682,7 +701,6 @@ body {
     <div class="day-pill" data-d="6"><div class="day-name">Sa</div><div class="day-indicator"></div></div>
   </div>
 
-  <!-- Date + Month/Year -->
   <div class="mid-row">
     <div class="lg date-card">
       <div class="lg-rim"></div>
@@ -705,7 +723,6 @@ body {
     </div>
   </div>
 
-  <!-- Mini calendar -->
   <div class="lg cal-card">
     <div class="lg-rim"></div>
     <div class="cal-head">
@@ -716,7 +733,6 @@ body {
     <div class="cal-grid" id="calGrid"></div>
   </div>
 
-  <!-- Search -->
   <div class="lg search-panel">
     <div class="lg-rim"></div>
     <span class="search-ico">⌕</span>
